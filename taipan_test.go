@@ -19,13 +19,13 @@ func TestUnbound(t *testing.T) {
 	}
 
 	for name, cmd := range tests {
+		cmd := cmd
 		t.Run(name, func(t *testing.T) {
 			rootCmd := buildCommand(t, "")
 			rootCmd.SetArgs(cmd.([]string))
 			assert.NoError(t, rootCmd.Execute())
 		})
 	}
-
 }
 
 func TestBindEnvVar(t *testing.T) {
@@ -44,6 +44,7 @@ func TestBindEnvVar(t *testing.T) {
 	}
 
 	for name, data := range tests {
+		data := data
 		t.Run(name, func(t *testing.T) {
 			defer testenv.PatchEnv(t, data.envMap)()
 			rootCmd := buildCommand(t, data.expected)
@@ -70,8 +71,8 @@ func TestBindConfigFile(t *testing.T) {
 	}
 
 	for name, data := range tests {
+		d := data
 		t.Run(name, func(t *testing.T) {
-			d := data
 			assert.NoError(t, ioutil.WriteFile("unittest-taipan.yaml", []byte(d.contents), 0600))
 			defer os.Remove("unittest-taipan.yaml")
 			rootCmd := buildCommand(t, d.expected)
@@ -126,7 +127,7 @@ func buildCommand(t *testing.T, expectedValue string) *cobra.Command {
 
 func asMap(kv ...string) map[string]string {
 	if len(kv)%2 != 0 {
-		panic(fmt.Errorf("Cannot convert to Map"))
+		panic(fmt.Errorf("cannot convert to Map"))
 	}
 
 	m := make(map[string]string, len(kv)/2)
