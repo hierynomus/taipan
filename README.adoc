@@ -1,0 +1,5 @@
+= Taipan
+:source-highlighter: highlightjs
+
+Taipan is the crossbreed of https://github.com/spf13/cobra[Cobra] and https://github.com/spf13/viper[Viper], allowing a nice and tight integration between these two great libraries.
+
