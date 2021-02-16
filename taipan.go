@@ -6,7 +6,6 @@ package taipan
 import (
 	"context"
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 
@@ -18,9 +17,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var emptyFunc = func(cmd *cobra.Command, args []string) error {
-	return nil
-}
+var (
+	emptyFunc = func(cmd *cobra.Command, args []string) error {
+		return nil
+	}
+	identity = func(s string) string { return s }
+)
 
 type Config struct {
 	DefaultConfigName  string
@@ -110,11 +112,6 @@ func (t *Taipan) Inject(cmd *cobra.Command) {
 			return err
 		}
 
-		// Bind all env variables with right prefix
-		if err := t.bindEnv(ctx); err != nil {
-			return err
-		}
-
 		if err := t.unmarshalConfigObject(ctx); err != nil {
 			return err
 		}
@@ -135,11 +132,27 @@ func (t *Taipan) bindFlags(ctx context.Context, cmd *cobra.Command) error {
 	b := func(flag *pflag.Flag, name string) {
 		log.Ctx(ctx).Trace().Str("flag", flag.Name).Str("viper-name", name).Msg("Binding flag")
 		collector.Collect(t.v.BindPFlag(name, flag))
+
+		envVarSuffix := name
+		if strings.ContainsAny(name, "-.") {
+			envVarSuffix = strings.NewReplacer("-", "_", ".", "_").Replace(name)
+		}
+
+		envVarSuffix = strings.ToUpper(envVarSuffix)
+		envVar := fmt.Sprintf("%s_%s", t.config.EnvironmentPrefix, envVarSuffix)
+		log.Ctx(ctx).Trace().Str("env-key", envVar).Str("viper-name", name).Msg("Binding environment")
+
+		collector.Collect(t.v.BindEnv(name, envVar))
 	}
 
-	replacer := strings.NewReplacer("-", ".", "_", ".")
+	replace := identity
+	if t.config.NamespaceFlags {
+		replacer := strings.NewReplacer("-", ".", "_", ".")
+		replace = replacer.Replace
+	}
+
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
-		name := replacer.Replace(f.Name)
+		name := replace(f.Name)
 		b(f, name)
 
 		if t.config.PrefixCommands {
@@ -147,39 +160,12 @@ func (t *Taipan) bindFlags(ctx context.Context, cmd *cobra.Command) error {
 			for _, p := range prefix {
 				alias := fmt.Sprintf("%s.%s", p, name)
 				b(f, alias)
-				// log.Ctx(ctx).Trace().Str("viper-name", name).Str("alias", alias).Msg("Register alias")
-				// t.v.RegisterAlias(alias, name)
 			}
 		}
 	})
 
 	if collector.HasErrors() {
 		return collector
-	}
-
-	return nil
-}
-
-func (t *Taipan) bindEnv(ctx context.Context) error {
-	if t.config.EnvironmentPrefix == "" {
-		log.Ctx(ctx).Trace().Msg("Skipping environment, no prefix configured")
-		return nil
-	}
-
-	envPrefix := fmt.Sprintf("%s_", t.config.EnvironmentPrefix)
-	repl := strings.NewReplacer("_", ".")
-	for k := range envMap(os.Environ()) {
-		if !strings.HasPrefix(k, envPrefix) {
-			continue
-		}
-
-		trimmed := strings.TrimPrefix(k, envPrefix)
-		viperKey := strings.ToLower(repl.Replace(trimmed))
-
-		log.Ctx(ctx).Trace().Str("viper-name", viperKey).Str("env-key", k).Msg("Binding environment")
-		if err := t.v.BindEnv(viperKey, k); err != nil {
-			return err
-		}
 	}
 
 	return nil

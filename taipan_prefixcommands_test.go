@@ -18,7 +18,7 @@ type RootConfig struct {
 }
 type NounConfig struct {
 	NounFlag string `yaml:"nounflag"`
-	VerbFlag string `yaml:"verbflag"`
+	VerbFlag string `yaml:"verb-flag"`
 }
 
 func TestShouldCalculatePrefixes(t *testing.T) {
@@ -38,7 +38,7 @@ func TestTaipanFlags(t *testing.T) {
 	})
 
 	tp.Inject(r)
-	r.SetArgs([]string{"noun", "verb", "--nounFlag", "val1", "--verbFlag", "val2"})
+	r.SetArgs([]string{"noun", "verb", "--nounFlag", "val1", "--verb-flag", "val2"})
 	assert.NoError(t, r.Execute())
 
 	assert.Equal(t, cfg.NounConfig.NounFlag, "val1")
@@ -47,7 +47,7 @@ func TestTaipanFlags(t *testing.T) {
 
 func TestTaipanEnv(t *testing.T) {
 	ctx := log.Logger.WithContext(context.Background())
-	env := test.AsMap("TST_NOUN_NOUNFLAG", "val1", "TST_NOUN_VERBFLAG", "val2")
+	env := test.AsMap("TST_NOUN_NOUNFLAG", "val1", "TST_NOUN_VERB_FLAG", "val2")
 	defer testenv.PatchEnv(t, env)()
 
 	r := cmdTree()
@@ -70,7 +70,7 @@ func TestTaipanConfig(t *testing.T) {
 	ctx := log.Logger.WithContext(context.Background())
 	assert.NoError(t, ioutil.WriteFile("unittest-taipan.yaml", []byte(`noun:
   nounflag: val1
-  verbflag: val2
+  verb-flag: val2
 `), 0600))
 	defer os.Remove("unittest-taipan.yaml")
 	r := cmdTree()
@@ -107,7 +107,7 @@ func cmdTree() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {},
 	}
 
-	verb.Flags().String("verbFlag", "", "")
+	verb.Flags().String("verb-flag", "", "")
 
 	noun.AddCommand(verb)
 	r.AddCommand(noun)
