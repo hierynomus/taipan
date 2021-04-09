@@ -125,9 +125,10 @@ func buildViperCommand(t *testing.T, expectedValue string) *cobra.Command {
 	rootCmd.AddCommand(bazCmd)
 
 	tai := New(&Config{
-		DefaultConfigName:  "unittest-taipan",
-		EnvironmentPrefix:  "TP",
-		PrefixCommands:     true,
+		DefaultConfigName: "unittest-taipan",
+		EnvironmentPrefix: "TP",
+		PrefixCommands:    true,
+		// NamespaceFlags:     true,
 		ConfigurationPaths: []string{"."},
 		ConfigObject:       cfg,
 	})

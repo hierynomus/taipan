@@ -120,7 +120,7 @@ func (t *Taipan) Inject(cmd *cobra.Command) {
 	}
 
 	if t.config.AddConfigFlag {
-		cmd.PersistentFlags().StringP("config", "c", "", "Configuration file to use")
+		cmd.PersistentFlags().String("config", "", "Configuration file to use")
 	}
 }
 
@@ -143,6 +143,12 @@ func (t *Taipan) bindFlags(ctx context.Context, cmd *cobra.Command) error {
 		log.Ctx(ctx).Trace().Str("env-key", envVar).Str("viper-name", name).Msg("Binding environment")
 
 		collector.Collect(t.v.BindEnv(name, envVar))
+
+		// Apply the viper config value to the flag when the flag is not set and viper has a value
+		if !flag.Changed && t.v.IsSet(name) {
+			val := t.v.Get(name)
+			collector.Collect(cmd.Flags().Set(flag.Name, fmt.Sprintf("%v", val)))
+		}
 	}
 
 	replace := identity
@@ -153,7 +159,6 @@ func (t *Taipan) bindFlags(ctx context.Context, cmd *cobra.Command) error {
 
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
 		name := replace(f.Name)
-		b(f, name)
 
 		if t.config.PrefixCommands {
 			prefix := prefix(cmd)
@@ -162,6 +167,8 @@ func (t *Taipan) bindFlags(ctx context.Context, cmd *cobra.Command) error {
 				b(f, alias)
 			}
 		}
+
+		b(f, name)
 	})
 
 	if collector.HasErrors() {
@@ -179,7 +186,7 @@ func (t *Taipan) unmarshalConfigObject(_ context.Context) error {
 
 	ri := reflect.TypeOf(obj)
 	if ri.Kind() != reflect.Ptr {
-		return fmt.Errorf("cannot unmarshall into a non-pointer: %s", ri.Name())
+		return fmt.Errorf("cannot unmarshal into a non-pointer: %s", ri.Name())
 	}
 
 	settings := t.v.AllSettings()
@@ -189,6 +196,10 @@ func (t *Taipan) unmarshalConfigObject(_ context.Context) error {
 	}
 
 	return yaml.Unmarshal(b, obj)
+}
+
+func (t *Taipan) Debug() {
+	t.v.Debug()
 }
 
 func envMap(env []string) map[string]string {
